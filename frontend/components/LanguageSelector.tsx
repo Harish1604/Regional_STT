@@ -1,6 +1,6 @@
 "use client";
 
-import { SUPPORTED_LANGUAGES, type Language } from "@/types/chat";
+import { SUPPORTED_LANGUAGES } from "@/types/chat";
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
@@ -14,42 +14,31 @@ export default function LanguageSelector({
   disabled = false,
 }: LanguageSelectorProps) {
   return (
-    <div className="flex items-center gap-3">
-      <label
-        htmlFor="language-select"
-        className="text-sm font-medium text-slate-300 whitespace-nowrap"
-      >
-        🌐 Language
-      </label>
-      <select
-        id="language-select"
-        value={selectedLanguage}
-        onChange={(e) => onLanguageChange(e.target.value)}
-        disabled={disabled}
-        className="
-          bg-slate-800/80 text-slate-100 border border-slate-600/50
-          rounded-xl px-4 py-2.5 text-sm font-medium
-          focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50
-          disabled:opacity-50 disabled:cursor-not-allowed
-          transition-all duration-200
-          hover:border-violet-400/40
-          appearance-none cursor-pointer
-          backdrop-blur-sm
-        "
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-          backgroundPosition: "right 0.5rem center",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "1.5em 1.5em",
-          paddingRight: "2.5rem",
-        }}
-      >
-        {SUPPORTED_LANGUAGES.map((lang: Language) => (
-          <option key={lang.code} value={lang.code}>
-            {lang.nativeName} — {lang.name}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      id="language-selector"
+      value={selectedLanguage}
+      onChange={(e) => onLanguageChange(e.target.value)}
+      disabled={disabled}
+      className={`
+        px-3 py-2 rounded-lg text-sm font-medium
+        bg-[#111] border border-[#333] text-white
+        focus:outline-none focus:border-[#555]
+        disabled:opacity-40 disabled:cursor-not-allowed
+        appearance-none cursor-pointer
+        pr-8
+      `}
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23666' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 8px center",
+        backgroundSize: "16px",
+      }}
+    >
+      {SUPPORTED_LANGUAGES.map((lang) => (
+        <option key={lang.code} value={lang.code}>
+          {lang.name} ({lang.nativeName})
+        </option>
+      ))}
+    </select>
   );
 }

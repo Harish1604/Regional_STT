@@ -1,43 +1,32 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type {
-  ChatMessage as ChatMessageType,
-  ChatHistoryItem,
-  DebugInfo,
-  LoadingState,
-} from "@/types/chat";
+import type { TranslationEntry, LoadingState } from "@/types/chat";
 import { SUPPORTED_LANGUAGES } from "@/types/chat";
-import { transcribeAudio, sendChatMessage, checkHealth } from "@/lib/api";
+import { translateAudio, checkHealth } from "@/lib/api";
 import { AudioRecorder } from "@/lib/recorder";
 import LanguageSelector from "@/components/LanguageSelector";
 import RecorderControls from "@/components/RecorderControls";
-import ChatWindow from "@/components/ChatWindow";
-import DebugPanel from "@/components/DebugPanel";
+import TranslationResult from "@/components/TranslationResult";
 
 export default function Home() {
   // --- State ---
   const [mounted, setMounted] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("ta");
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [translations, setTranslations] = useState<TranslationEntry[]>([]);
   const [loading, setLoading] = useState<LoadingState>({
     transcribing: false,
-    generatingReply: false,
+    translating: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
-  const [debug, setDebug] = useState<DebugInfo>({
-    selectedLanguage: "ta",
-    lastTranscript: "",
-    sttModel: "",
-    sttLatencyMs: null,
-    llmLatencyMs: null,
-    audioDurationSec: null,
-  });
 
   const recorderRef = useRef<AudioRecorder | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // --- Health check on mount ---
   useEffect(() => {
@@ -45,10 +34,28 @@ export default function Home() {
     checkHealth().then(setBackendOnline);
   }, []);
 
-  // --- Update debug when language changes ---
+  // --- Auto-scroll on new translations ---
   useEffect(() => {
-    setDebug((prev) => ({ ...prev, selectedLanguage }));
-  }, [selectedLanguage]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [translations]);
+
+  // --- Recording timer ---
+  useEffect(() => {
+    if (isRecording) {
+      setRecordingDuration(0);
+      timerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isRecording]);
 
   // --- Show error with auto-dismiss ---
   const showError = useCallback((msg: string) => {
@@ -66,98 +73,43 @@ export default function Home() {
   // --- Process audio (shared by recording and upload) ---
   const processAudio = useCallback(
     async (audioBlob: Blob | File) => {
-      // Step 1: Transcribe
-      setLoading((prev) => ({ ...prev, transcribing: true }));
+      setLoading({ transcribing: true, translating: false });
 
       try {
-        const transcribeResult = await transcribeAudio(
+        const result = await translateAudio(
           audioBlob,
-          selectedLanguage
-        );
-
-        if (!transcribeResult.success || !transcribeResult.transcript) {
-          throw new Error("Transcription returned empty result");
-        }
-
-        // Update debug info
-        setDebug((prev) => ({
-          ...prev,
-          lastTranscript: transcribeResult.transcript,
-          sttModel: transcribeResult.model,
-          sttLatencyMs: transcribeResult.latency_ms,
-          audioDurationSec: transcribeResult.audio_duration_sec,
-        }));
-
-        // Add user message
-        const userMessage: ChatMessageType = {
-          id: generateId(),
-          role: "user",
-          text: transcribeResult.transcript,
-          language: selectedLanguage,
-          createdAt: new Date().toISOString(),
-          metadata: {
-            source: "stt",
-            latencyMs: transcribeResult.latency_ms,
-            model: transcribeResult.model,
-            audioDurationSec: transcribeResult.audio_duration_sec,
-          },
-        };
-
-        setMessages((prev) => [...prev, userMessage]);
-        setLoading((prev) => ({ ...prev, transcribing: false }));
-
-        // Step 2: Get LLM reply
-        setLoading((prev) => ({ ...prev, generatingReply: true }));
-
-        // Build history from existing messages
-        const history: ChatHistoryItem[] = [
-          ...messages.map((m) => ({
-            role: m.role,
-            text: m.text,
-          })),
-          { role: "user" as const, text: transcribeResult.transcript },
-        ];
-
-        const chatResult = await sendChatMessage(
-          transcribeResult.transcript,
           selectedLanguage,
-          history
+          "en" // target: English
         );
 
-        if (!chatResult.success || !chatResult.reply) {
-          throw new Error("Chat returned empty reply");
+        if (!result.success) {
+          throw new Error("Translation returned empty result");
         }
 
-        // Update debug info
-        setDebug((prev) => ({
-          ...prev,
-          llmLatencyMs: chatResult.latency_ms,
-        }));
-
-        // Add assistant message
-        const assistantMessage: ChatMessageType = {
+        const entry: TranslationEntry = {
           id: generateId(),
-          role: "assistant",
-          text: chatResult.reply,
-          language: selectedLanguage,
+          sourceText: result.source_text,
+          translatedText: result.translated_text,
+          sourceLanguage: result.source_language,
+          targetLanguage: result.target_language,
+          sttLatencyMs: result.stt_latency_ms,
+          translationLatencyMs: result.translation_latency_ms,
+          totalLatencyMs: result.total_latency_ms,
+          audioDurationSec: result.audio_duration_sec,
           createdAt: new Date().toISOString(),
-          metadata: {
-            source: "llm",
-            latencyMs: chatResult.latency_ms,
-          },
         };
 
-        setMessages((prev) => [...prev, assistantMessage]);
+        setTranslations((prev) => [...prev, entry]);
       } catch (err) {
         const errorMsg =
           err instanceof Error ? err.message : "An unexpected error occurred";
         showError(errorMsg);
         console.error("Processing error:", err);
       } finally {
-        setLoading({ transcribing: false, generatingReply: false });
+        setLoading({ transcribing: false, translating: false });
       }
     },
-    [selectedLanguage, messages, showError]
+    [selectedLanguage, showError]
   );
 
   // --- Recording handlers ---
@@ -198,38 +150,29 @@ export default function Home() {
     [processAudio]
   );
 
-  // --- Clear chat ---
-  const handleClearChat = useCallback(() => {
-    setMessages([]);
-    setDebug((prev) => ({
-      ...prev,
-      lastTranscript: "",
-      sttLatencyMs: null,
-      llmLatencyMs: null,
-      audioDurationSec: null,
-    }));
+  // --- Clear history ---
+  const handleClear = useCallback(() => {
+    setTranslations([]);
   }, []);
 
-  const isProcessing = loading.transcribing || loading.generatingReply;
+  const isProcessing = loading.transcribing || loading.translating;
 
   const currentLang = SUPPORTED_LANGUAGES.find(
     (l) => l.code === selectedLanguage
   );
 
   if (!mounted) {
-    return (
-      <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-slate-950" />
-    );
+    return <div className="flex flex-col h-screen bg-black" />;
   }
 
   return (
-    <div className="flex flex-col h-screen max-h-screen overflow-hidden">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-black">
       {/* Error Toast */}
       {error && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-in-top">
-          <div className="flex items-center gap-3 bg-red-500/90 backdrop-blur-sm text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 max-w-lg">
+          <div className="flex items-center gap-3 bg-[#111] border border-[#333] text-white px-5 py-3 rounded-lg max-w-lg">
             <svg
-              className="w-5 h-5 flex-shrink-0"
+              className="w-4 h-4 flex-shrink-0 text-[#ff3333]"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -239,10 +182,10 @@ export default function Home() {
                 clipRule="evenodd"
               />
             </svg>
-            <span className="text-sm font-medium">{error}</span>
+            <span className="text-sm">{error}</span>
             <button
               onClick={() => setError(null)}
-              className="ml-2 text-white/70 hover:text-white"
+              className="ml-2 text-[#666] hover:text-white"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -257,20 +200,20 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="glass border-b border-slate-700/50 px-4 md:px-6 py-4">
-        <div className="max-w-4xl mx-auto">
+      <header className="border-b border-[#222] px-4 md:px-6 py-4 bg-black">
+        <div className="max-w-3xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold gradient-text">
-                Indic Voice Chat
+              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                Indic Voice Translator
               </h1>
-              <p className="text-xs md:text-sm text-slate-400 mt-0.5">
-                Speak in {currentLang?.name || "your language"} — powered by
-                AI4Bharat IndicConformer
+              <p className="text-xs text-[#666] mt-0.5">
+                Speak in {currentLang?.name || "your language"} -- translates to
+                English via AI4Bharat STT + LLaMA
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {/* Backend status indicator */}
+              {/* Backend status */}
               <div
                 className="flex items-center gap-1.5"
                 title={
@@ -282,15 +225,15 @@ export default function Home() {
                 }
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-1.5 h-1.5 rounded-full ${
                     backendOnline === null
-                      ? "bg-yellow-400"
+                      ? "bg-[#666]"
                       : backendOnline
-                        ? "bg-emerald-400"
-                        : "bg-red-400"
+                        ? "bg-white"
+                        : "bg-[#ff3333]"
                   }`}
                 />
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-[#555]">
                   {backendOnline === null
                     ? "Checking"
                     : backendOnline
@@ -308,33 +251,103 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto overflow-hidden">
-        <ChatWindow messages={messages} loading={loading} />
-      </main>
+      {/* Recording Controls */}
+      <div className="border-b border-[#222] py-6 bg-[#0a0a0a]">
+        <div className="max-w-3xl mx-auto px-4 md:px-6">
+          <RecorderControls
+            isRecording={isRecording}
+            isProcessing={isProcessing}
+            recordingDuration={recordingDuration}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            onFileUpload={handleFileUpload}
+          />
+        </div>
+      </div>
 
-      {/* Controls + Debug */}
-      <footer className="glass border-t border-slate-700/50">
-        <div className="max-w-4xl mx-auto">
-          {/* Controls bar */}
-          <div
-            className={`px-4 md:px-6 py-4 ${isRecording ? "recording-glow" : ""}`}
-          >
-            <RecorderControls
-              isRecording={isRecording}
-              isProcessing={isProcessing}
-              onStartRecording={handleStartRecording}
-              onStopRecording={handleStopRecording}
-              onFileUpload={handleFileUpload}
-              onClearChat={handleClearChat}
-              hasMessages={messages.length > 0}
-            />
+      {/* Results Area */}
+      <main className="flex-1 overflow-y-auto scrollbar-thin">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 py-6">
+          {/* Empty state */}
+          {translations.length === 0 && !isProcessing && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-12 h-12 rounded-full border border-[#333] flex items-center justify-center mb-4">
+                <svg
+                  className="w-5 h-5 text-[#555]"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z" />
+                </svg>
+              </div>
+              <h2 className="text-base font-medium text-[#999] mb-1.5">
+                Ready to translate
+              </h2>
+              <p className="text-sm text-[#555] max-w-sm leading-relaxed">
+                Select a language, press Start, and speak.
+                Your speech will be transcribed and translated to English.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2 mt-5">
+                {SUPPORTED_LANGUAGES.slice(0, 5).map((lang) => (
+                  <span
+                    key={lang.code}
+                    className="px-3 py-1 bg-[#111] text-[#555] rounded-full text-xs border border-[#222]"
+                  >
+                    {lang.nativeName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Processing indicator (shown while waiting for results) */}
+          {isProcessing && (
+            <div className="card px-5 py-5 mb-4 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-white rounded-full dot-1" />
+                  <span className="w-2 h-2 bg-white rounded-full dot-2" />
+                  <span className="w-2 h-2 bg-white rounded-full dot-3" />
+                </div>
+                <span className="text-sm text-[#888]">
+                  Transcribing and translating...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Translation results */}
+          <div className="flex flex-col gap-4">
+            {translations.map((entry) => (
+              <TranslationResult key={entry.id} entry={entry} />
+            ))}
           </div>
 
-          {/* Debug Panel */}
-          <DebugPanel debug={debug} />
+          {/* Clear button */}
+          {translations.length > 0 && (
+            <div className="flex justify-center mt-6 mb-4">
+              <button
+                id="clear-history-button"
+                onClick={handleClear}
+                disabled={isRecording || isProcessing}
+                className="
+                  text-xs text-[#555] hover:text-[#999]
+                  border border-[#222] hover:border-[#444]
+                  px-4 py-2 rounded-lg
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                  transition-all
+                "
+              >
+                Clear history
+              </button>
+            </div>
+          )}
+
+          {/* Scroll anchor */}
+          <div ref={bottomRef} />
         </div>
-      </footer>
+      </main>
     </div>
   );
 }

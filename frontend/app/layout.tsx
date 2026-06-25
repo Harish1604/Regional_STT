@@ -8,20 +8,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Indic Voice Chat — AI4Bharat STT",
+  title: "Indic Voice Translator -- AI4Bharat STT + LLaMA",
   description:
-    "Indian regional-language speech chatbot powered by AI4Bharat IndicConformer STT. Speak in Tamil, Hindi, Telugu, Malayalam, Kannada and more.",
+    "Translate Indian regional-language speech to English. Powered by AI4Bharat IndicConformer STT and LLaMA.",
   keywords: [
     "AI4Bharat",
     "IndicConformer",
     "speech to text",
+    "translation",
     "Indian languages",
     "Tamil",
     "Hindi",
     "Telugu",
-    "chatbot",
-    "STT",
-    "ASR",
+    "LLaMA",
+    "Ollama",
   ],
 };
 
@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased text-slate-100`}>
+      <body className={`${inter.variable} font-sans antialiased bg-black text-white`}>
         {children}
       </body>
     </html>

@@ -74,6 +74,154 @@ CONTEXT:
 - Reply naturally as if having a spoken conversation."""
 
 
+def get_translation_prompt(source_lang: str, target_lang: str) -> str:
+    """
+    Generate a few-shot translation prompt.
+    Includes worked examples per language to ground the model and prevent
+    hallucination. Critical for llama3 which struggles with zero-shot
+    Indian language translation.
+
+    Args:
+        source_lang: ISO 639-1 source language code
+        target_lang: ISO 639-1 target language code
+
+    Returns:
+        Translation prompt string with few-shot examples.
+    """
+    src_name = get_language_name(source_lang)
+    tgt_name = get_language_name(target_lang)
+
+    # Few-shot examples per source language
+    examples = _get_translation_examples(source_lang, target_lang)
+    examples_text = ""
+    for ex in examples:
+        examples_text += f"\n{src_name}: {ex['src']}\n{tgt_name}: {ex['tgt']}\n"
+
+    return f"""You are a multilingual translation agent for Indian regional language speech transcripts.
+
+The input may be in Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Odia, Assamese, Urdu, or a code-mixed combination with English.
+
+Your task is to translate the transcript into {tgt_name}.
+
+Return valid JSON only in this exact format:
+{{
+  "{target_lang}_translation": "..."
+}}
+
+Rules:
+- Preserve the original meaning exactly.
+- Do not answer the user.
+- Do not summarize.
+- Do not explain.
+- Preserve names, places, dates, numbers, IDs, addresses, and domain-specific terms unless they clearly have a standard English translation.
+- If the transcript is colloquial spoken language, rewrite it as natural English without changing meaning.
+- If English words are already present, keep them naturally in the sentence.
+- If the input is code-mixed, translate only the non-English parts while preserving the full intended meaning.
+- If any phrase is ambiguous, translate conservatively and do not invent missing content.
+- Output valid JSON only. No markdown. No extra text.
+
+Examples:{examples_text}
+Now translate this:
+Transcript:"""
+
+
+# ---- Few-shot translation examples per language ----
+
+_TRANSLATION_EXAMPLES = {
+    "ta": {
+        "en": [
+            {"src": "வணக்கம் எப்படி இருக்கீங்க", "tgt": "{\n  \"en_translation\": \"Hello, how are you?\"\n}"},
+            {"src": "நான் காலையில சாப்பிட்டேன்", "tgt": "{\n  \"en_translation\": \"I ate in the morning\"\n}"},
+            {"src": "நாளைக்கு ட்ரெயின்ல போகணும்", "tgt": "{\n  \"en_translation\": \"I need to go by train tomorrow\"\n}"},
+            {"src": "நாளைக்கு எனக்கு பர்த்டே", "tgt": "{\n  \"en_translation\": \"Tomorrow is my birthday\"\n}"},
+            {"src": "டிரான்ஸ்லேஷன் ஒழுங்காக ஒர்க் ஆகலாது", "tgt": "{\n  \"en_translation\": \"The translation is not working properly\"\n}"},
+        ],
+    },
+    "hi": {
+        "en": [
+            {"src": "नमस्ते आप कैसे हैं", "tgt": "{\n  \"en_translation\": \"Hello, how are you?\"\n}"},
+            {"src": "मैंने सुबह खाना खाया", "tgt": "{\n  \"en_translation\": \"I ate food in the morning\"\n}"},
+            {"src": "कल मुझे ट्रेन से जाना है", "tgt": "I have to go by train tomorrow"},
+        ],
+    },
+    "te": {
+        "en": [
+            {"src": "నమస్కారం మీరు ఎలా ఉన్నారు", "tgt": "Hello, how are you?"},
+            {"src": "నేను ఉదయం తిన్నాను", "tgt": "I ate in the morning"},
+            {"src": "రేపు ట్రైన్ లో వెళ్ళాలి", "tgt": "I need to go by train tomorrow"},
+        ],
+    },
+    "ml": {
+        "en": [
+            {"src": "നമസ്കാരം സുഖമാണോ", "tgt": "Hello, how are you?"},
+            {"src": "ഞാൻ രാവിലെ കഴിച്ചു", "tgt": "I ate in the morning"},
+            {"src": "നാളെ ട്രെയിനിൽ പോകണം", "tgt": "I need to go by train tomorrow"},
+        ],
+    },
+    "kn": {
+        "en": [
+            {"src": "ನಮಸ್ಕಾರ ಹೇಗಿದ್ದೀರಿ", "tgt": "Hello, how are you?"},
+            {"src": "ನಾನು ಬೆಳಿಗ್ಗೆ ತಿಂದೆ", "tgt": "I ate in the morning"},
+            {"src": "ನಾಳೆ ಟ್ರೈನ್ ನಲ್ಲಿ ಹೋಗಬೇಕು", "tgt": "I need to go by train tomorrow"},
+        ],
+    },
+    "bn": {
+        "en": [
+            {"src": "নমস্কার কেমন আছেন", "tgt": "Hello, how are you?"},
+            {"src": "আমি সকালে খেয়েছি", "tgt": "I ate in the morning"},
+            {"src": "কাল ট্রেনে যেতে হবে", "tgt": "I have to go by train tomorrow"},
+        ],
+    },
+    "gu": {
+        "en": [
+            {"src": "નમસ્તે કેમ છો", "tgt": "Hello, how are you?"},
+            {"src": "મેં સવારે ખાધું", "tgt": "I ate in the morning"},
+            {"src": "કાલે ટ્રેનમાં જવું છે", "tgt": "I need to go by train tomorrow"},
+        ],
+    },
+    "mr": {
+        "en": [
+            {"src": "नमस्कार कसे आहात", "tgt": "Hello, how are you?"},
+            {"src": "मी सकाळी जेवलो", "tgt": "I ate in the morning"},
+            {"src": "उद्या ट्रेनने जायचे आहे", "tgt": "I have to go by train tomorrow"},
+        ],
+    },
+    "pa": {
+        "en": [
+            {"src": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਕਿਵੇਂ ਹੋ", "tgt": "Hello, how are you?"},
+            {"src": "ਮੈਂ ਸਵੇਰੇ ਖਾਣਾ ਖਾਧਾ", "tgt": "I ate food in the morning"},
+            {"src": "ਕੱਲ੍ਹ ਟ੍ਰੇਨ ਨਾਲ ਜਾਣਾ ਹੈ", "tgt": "I have to go by train tomorrow"},
+        ],
+    },
+    "ur": {
+        "en": [
+            {"src": "السلام علیکم آپ کیسے ہیں", "tgt": "Hello, how are you?"},
+            {"src": "میں نے صبح کھانا کھایا", "tgt": "I ate food in the morning"},
+            {"src": "کل ٹرین سے جانا ہے", "tgt": "I have to go by train tomorrow"},
+        ],
+    },
+}
+
+
+def _get_translation_examples(
+    source_lang: str, target_lang: str
+) -> list[dict]:
+    """
+    Get few-shot examples for a language pair.
+    Falls back to generic examples if the pair isn't defined.
+    """
+    lang_examples = _TRANSLATION_EXAMPLES.get(source_lang, {})
+    examples = lang_examples.get(target_lang, [])
+
+    if not examples:
+        # Fallback: generic examples
+        return [
+            {"src": "(greeting)", "tgt": "Hello, how are you?"},
+        ]
+
+    return examples
+
+
 def get_domain_prompt(language: str, domain: str = "general") -> str:
     """
     Get a domain-specific prompt. Currently only 'general' is implemented.

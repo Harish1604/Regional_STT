@@ -8,7 +8,12 @@ import time
 from abc import ABC, abstractmethod
 
 from app.config import settings
-from app.prompts.system_prompts import get_system_prompt, get_domain_prompt
+from app.prompts.system_prompts import (
+    get_system_prompt,
+    get_domain_prompt,
+    get_translation_prompt,
+    get_language_name,
+)
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -35,6 +40,28 @@ class BaseLLMService(ABC):
         Returns:
             dict with keys:
                 - reply: str
+                - latency_ms: int
+        """
+        pass
+
+    @abstractmethod
+    def translate(
+        self,
+        text: str,
+        source_language: str,
+        target_language: str,
+    ) -> dict:
+        """
+        Translate text from source to target language.
+
+        Args:
+            text: The text to translate.
+            source_language: ISO 639-1 source language code.
+            target_language: ISO 639-1 target language code.
+
+        Returns:
+            dict with keys:
+                - translated_text: str
                 - latency_ms: int
         """
         pass
@@ -144,6 +171,54 @@ class GeminiLLMService(BaseLLMService):
             log.error(f"Gemini LLM failed after {latency_ms}ms: {e}")
             raise RuntimeError(f"LLM generation failed: {e}") from e
 
+    def translate(
+        self,
+        text: str,
+        source_language: str,
+        target_language: str,
+    ) -> dict:
+        """Translate text using Google Gemini."""
+        start_time = time.time()
+
+        system_prompt = get_translation_prompt(source_language, target_language)
+
+        log.info(
+            f"Translation request | provider: gemini | model: {self.model_name} | "
+            f"{source_language} -> {target_language} | text_length: {len(text)}"
+        )
+
+        try:
+            from google.genai import types
+
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=text)],
+                )
+            ]
+
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.3,
+                    max_output_tokens=256,
+                ),
+            )
+
+            translated = response.text.strip() if response.text else ""
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            log.info(f"Translation response | latency: {latency_ms}ms")
+
+            return {"translated_text": translated, "latency_ms": latency_ms}
+
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            log.error(f"Gemini translation failed after {latency_ms}ms: {e}")
+            raise RuntimeError(f"Translation failed: {e}") from e
+
 
 class OpenAILLMService(BaseLLMService):
     """OpenAI LLM service implementation."""
@@ -206,6 +281,40 @@ class OpenAILLMService(BaseLLMService):
             log.error(f"OpenAI LLM failed after {latency_ms}ms: {e}")
             raise RuntimeError(f"LLM generation failed: {e}") from e
 
+    def translate(
+        self,
+        text: str,
+        source_language: str,
+        target_language: str,
+    ) -> dict:
+        """Translate text using OpenAI."""
+        start_time = time.time()
+
+        system_prompt = get_translation_prompt(source_language, target_language)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.3,
+                max_tokens=256,
+            )
+
+            translated = response.choices[0].message.content.strip()
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            log.info(f"OpenAI translation | latency: {latency_ms}ms")
+
+            return {"translated_text": translated, "latency_ms": latency_ms}
+
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            log.error(f"OpenAI translation failed after {latency_ms}ms: {e}")
+            raise RuntimeError(f"Translation failed: {e}") from e
+
 
 class OllamaLLMService(BaseLLMService):
     """Ollama (local) LLM service implementation."""
@@ -237,17 +346,18 @@ class OllamaLLMService(BaseLLMService):
         )
 
         try:
-            ollama_messages = [{"role": "system", "content": system_prompt}]
+            # Build a single prompt from system + history + user message
+            prompt_parts = [f"System: {system_prompt}\n"]
             for msg in messages:
-                ollama_messages.append(
-                    {"role": msg["role"], "content": msg["content"]}
-                )
+                role = "User" if msg["role"] == "user" else "Assistant"
+                prompt_parts.append(f"{role}: {msg['content']}")
+            full_prompt = "\n".join(prompt_parts) + "\nAssistant:"
 
             response = requests.post(
-                f"{self.base_url}/api/chat",
+                f"{self.base_url}/api/generate",
                 json={
                     "model": self.model_name,
-                    "messages": ollama_messages,
+                    "prompt": full_prompt,
                     "stream": False,
                 },
                 timeout=60,
@@ -255,7 +365,7 @@ class OllamaLLMService(BaseLLMService):
             response.raise_for_status()
             data = response.json()
 
-            reply = data.get("message", {}).get("content", "").strip()
+            reply = data.get("response", "").strip()
             latency_ms = int((time.time() - start_time) * 1000)
 
             log.info(f"LLM response | latency: {latency_ms}ms")
@@ -266,6 +376,66 @@ class OllamaLLMService(BaseLLMService):
             latency_ms = int((time.time() - start_time) * 1000)
             log.error(f"Ollama LLM failed after {latency_ms}ms: {e}")
             raise RuntimeError(f"LLM generation failed: {e}") from e
+
+    def translate(
+        self,
+        text: str,
+        source_language: str,
+        target_language: str,
+    ) -> dict:
+        """Translate text using Ollama (local LLaMA)."""
+        import requests
+
+        start_time = time.time()
+
+        system_prompt = get_translation_prompt(source_language, target_language)
+
+        log.info(
+            f"Translation request | provider: ollama | model: {self.model_name} | "
+            f"{source_language} -> {target_language}"
+        )
+
+        try:
+            full_prompt = f"{system_prompt}\n\n{text}"
+
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": full_prompt,
+                    "stream": False,
+                    "format": "json",
+                    "options": {
+                        "num_predict": 256,
+                        "temperature": 0.1,
+                    },
+                },
+                timeout=60,
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # The response itself should be a JSON string from the LLM
+            response_text = data.get("response", "").strip()
+            
+            try:
+                import json
+                parsed_json = json.loads(response_text)
+                translated = parsed_json.get(f"{target_language}_translation", response_text)
+            except json.JSONDecodeError:
+                log.warning(f"Failed to parse LLM JSON output. Raw output: {response_text}")
+                translated = response_text
+
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            log.info(f"Ollama translation | latency: {latency_ms}ms")
+
+            return {"translated_text": translated, "latency_ms": latency_ms}
+
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            log.error(f"Ollama translation failed after {latency_ms}ms: {e}")
+            raise RuntimeError(f"Translation failed: {e}") from e
 
 
 def create_llm_service() -> BaseLLMService:

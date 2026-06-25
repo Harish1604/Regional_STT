@@ -14,7 +14,7 @@ from app.config import settings
 from app.services.stt_service import STTService
 from app.services.audio_service import AudioService
 from app.services.llm_service import create_llm_service
-from app.routes import health, transcribe, chat
+from app.routes import health, transcribe, chat, translate
 from app.utils.file_utils import ensure_directories
 from app.utils.logger import get_logger
 
@@ -100,6 +100,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(transcribe.router)
 app.include_router(chat.router)
+app.include_router(translate.router)
 
 
 # --- Entry point for direct execution ---

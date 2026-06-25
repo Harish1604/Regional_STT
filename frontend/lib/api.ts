@@ -6,6 +6,7 @@ import type {
   TranscribeResponse,
   ChatAPIResponse,
   ChatHistoryItem,
+  TranslateAPIResponse,
 } from "@/types/chat";
 
 const API_BASE_URL =
@@ -25,11 +26,49 @@ export async function checkHealth(): Promise<boolean> {
 }
 
 /**
- * Send audio file to the backend for transcription.
+ * Combined STT + Translation in a single API call.
+ * Sends audio to the /translate endpoint which runs both STT and LLM translation.
  *
  * @param file - Audio file (Blob or File)
- * @param language - ISO 639-1 language code (e.g., 'ta', 'hi')
- * @returns TranscribeResponse with transcript and metadata
+ * @param sourceLanguage - ISO 639-1 source language code (e.g., 'ta', 'hi')
+ * @param targetLanguage - ISO 639-1 target language code (default: 'en')
+ * @returns TranslateAPIResponse with source text, translated text, and latencies
+ */
+export async function translateAudio(
+  file: Blob | File,
+  sourceLanguage: string,
+  targetLanguage: string = "en"
+): Promise<TranslateAPIResponse> {
+  const formData = new FormData();
+
+  // If it's a Blob (from MediaRecorder), wrap it as a File
+  if (file instanceof Blob && !(file instanceof File)) {
+    formData.append("file", file, "recording.webm");
+  } else {
+    formData.append("file", file);
+  }
+
+  formData.append("source_language", sourceLanguage);
+  formData.append("target_language", targetLanguage);
+
+  const res = await fetch(`${API_BASE_URL}/translate`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || errorData.error || `Translation failed (${res.status})`
+    );
+  }
+
+  return res.json();
+}
+
+/**
+ * Send audio file to the backend for transcription.
+ * (Kept for backward compatibility)
  */
 export async function transcribeAudio(
   file: Blob | File,
@@ -37,7 +76,6 @@ export async function transcribeAudio(
 ): Promise<TranscribeResponse> {
   const formData = new FormData();
 
-  // If it's a Blob (from MediaRecorder), wrap it as a File
   if (file instanceof Blob && !(file instanceof File)) {
     formData.append("file", file, "recording.webm");
   } else {
@@ -63,11 +101,7 @@ export async function transcribeAudio(
 
 /**
  * Send a chat message to the backend LLM.
- *
- * @param message - The user's transcript text
- * @param language - ISO 639-1 language code
- * @param history - Previous conversation messages
- * @returns ChatAPIResponse with the LLM reply
+ * (Kept for backward compatibility)
  */
 export async function sendChatMessage(
   message: string,

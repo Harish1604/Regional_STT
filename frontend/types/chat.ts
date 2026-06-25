@@ -1,5 +1,5 @@
 /**
- * Chat and API type definitions for the Regional STT Chatbot.
+ * Type definitions for the Indic Voice Translator.
  */
 
 /** Supported language definition */
@@ -23,22 +23,42 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: "ur", name: "Urdu", nativeName: "اردو" },
 ];
 
-/** Chat message format */
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  language: string;
-  createdAt: string;
-  metadata?: {
-    source?: "stt" | "llm";
-    latencyMs?: number;
-    model?: string;
-    audioDurationSec?: number;
-  };
+/** Target languages for translation */
+export const TARGET_LANGUAGES: Language[] = [
+  { code: "en", name: "English", nativeName: "English" },
+  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+  { code: "ta", name: "Tamil", nativeName: "தமிழ்" },
+];
+
+/** Backend /translate response */
+export interface TranslateAPIResponse {
+  success: boolean;
+  source_text: string;
+  translated_text: string;
+  source_language: string;
+  target_language: string;
+  stt_latency_ms: number;
+  translation_latency_ms: number;
+  total_latency_ms: number;
+  audio_duration_sec: number;
+  model: string;
 }
 
-/** Backend /transcribe response */
+/** A single translation entry for the history */
+export interface TranslationEntry {
+  id: string;
+  sourceText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  sttLatencyMs: number;
+  translationLatencyMs: number;
+  totalLatencyMs: number;
+  audioDurationSec: number;
+  createdAt: string;
+}
+
+/** Backend /transcribe response (kept for backward compat) */
 export interface TranscribeResponse {
   success: boolean;
   transcript: string;
@@ -48,7 +68,7 @@ export interface TranscribeResponse {
   latency_ms: number;
 }
 
-/** Backend /chat response */
+/** Backend /chat response (kept for backward compat) */
 export interface ChatAPIResponse {
   success: boolean;
   reply: string;
@@ -63,16 +83,6 @@ export interface ErrorResponse {
   detail?: string;
 }
 
-/** Debug/metadata state */
-export interface DebugInfo {
-  selectedLanguage: string;
-  lastTranscript: string;
-  sttModel: string;
-  sttLatencyMs: number | null;
-  llmLatencyMs: number | null;
-  audioDurationSec: number | null;
-}
-
 /** Chat history item for API requests */
 export interface ChatHistoryItem {
   role: "user" | "assistant";
@@ -82,5 +92,5 @@ export interface ChatHistoryItem {
 /** Application loading states */
 export interface LoadingState {
   transcribing: boolean;
-  generatingReply: boolean;
+  translating: boolean;
 }
