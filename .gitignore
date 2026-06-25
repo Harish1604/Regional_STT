@@ -1,0 +1,44 @@
+# Git ignore file for Regional STT Chatbot
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Python virtual environment
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+# Python cache & logs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/app/__pycache__/
+backend/app/models/__pycache__/
+backend/app/routes/__pycache__/
+backend/app/services/__pycache__/
+backend/app/utils/__pycache__/
+backend/app/prompts/__pycache__/
+backend/logs/
+*.log
+
+# Audio temp and uploads
+backend/temp_audio/
+backend/uploads/
+backend/test.wav
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# OS files
+.DS_Store
+Thumbs.db

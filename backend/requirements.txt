@@ -1,0 +1,41 @@
+# ============================================================
+# Regional STT Chatbot — Backend Dependencies
+# ============================================================
+
+# --- Web Framework ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# --- Data Validation ---
+pydantic>=2.0
+pydantic-settings>=2.0
+
+# --- AI4Bharat STT (IndicConformer) ---
+torch>=2.0
+torchaudio>=2.0
+transformers>=4.40
+huggingface-hub>=0.23
+onnxruntime>=1.20.1
+onnx>=1.20.1
+onnxruntime-gpu>=1.20.1
+
+# --- Audio Processing ---
+pydub>=0.25
+audioop-lts>=0.2.1 ; python_version >= '3.13'
+soundfile>=0.12.0
+torchcodec>=0.1.0
+
+
+# --- LLM (Ollama — local Llama) ---
+requests>=2.31
+
+# --- Logging ---
+loguru>=0.7
+
+# --- Environment ---
+python-dotenv>=1.0
+
+# --- Optional: Additional LLM Providers ---
+google-genai>=1.0    # Uncomment if using Gemini
+# openai>=1.30          # Uncomment if using OpenAI
