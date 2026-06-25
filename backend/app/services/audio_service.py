@@ -93,7 +93,7 @@ class AudioService:
                 chunks = [audio[i:i+chunk_ms] for i in range(0, len(audio), chunk_ms)]
                 processed_chunks = []
                 for chunk in chunks:
-                    if chunk.dbfs < threshold:
+                    if chunk.dBFS < threshold:
                         # Attenuate quiet chunk by 20dB
                         processed_chunks.append(chunk - 20)
                     else:
