@@ -68,8 +68,7 @@ class AudioService:
 
         try:
             # Load audio using pydub (requires ffmpeg)
-            input_format = SUPPORTED_FORMATS[ext]
-            audio = AudioSegment.from_file(input_path, format=input_format)
+            audio = AudioSegment.from_file(input_path)
 
             # Convert to mono
             if audio.channels > 1:

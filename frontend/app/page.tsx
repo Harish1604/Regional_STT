@@ -162,17 +162,17 @@ export default function Home() {
   );
 
   if (!mounted) {
-    return <div className="flex flex-col h-screen bg-black" />;
+    return <div className="flex flex-col h-screen bg-white" />;
   }
 
   return (
-    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-black">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-white">
       {/* Error Toast */}
       {error && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-in-top">
-          <div className="flex items-center gap-3 bg-[#111] border border-[#333] text-white px-5 py-3 rounded-lg max-w-lg">
+          <div className="flex items-center gap-3 bg-white border border-neutral-200 shadow-lg text-neutral-900 px-5 py-3 rounded-lg max-w-lg">
             <svg
-              className="w-4 h-4 flex-shrink-0 text-[#ff3333]"
+              className="w-4 h-4 flex-shrink-0 text-red-600"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -185,7 +185,7 @@ export default function Home() {
             <span className="text-sm">{error}</span>
             <button
               onClick={() => setError(null)}
-              className="ml-2 text-[#666] hover:text-white"
+              className="ml-2 text-neutral-400 hover:text-neutral-900"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -200,14 +200,14 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="border-b border-[#222] px-4 md:px-6 py-4 bg-black">
+      <header className="border-b border-neutral-100 px-4 md:px-6 py-4 bg-white">
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+              <h1 className="text-xl md:text-2xl font-bold text-neutral-950 tracking-tight">
                 Indic Voice Translator
               </h1>
-              <p className="text-xs text-[#666] mt-0.5">
+              <p className="text-xs text-neutral-500 mt-0.5">
                 Speak in {currentLang?.name || "your language"} -- translates to
                 English via AI4Bharat STT + LLaMA
               </p>
@@ -227,13 +227,13 @@ export default function Home() {
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
                     backendOnline === null
-                      ? "bg-[#666]"
+                      ? "bg-neutral-300"
                       : backendOnline
-                        ? "bg-white"
-                        : "bg-[#ff3333]"
+                        ? "bg-neutral-950"
+                        : "bg-red-500"
                   }`}
                 />
-                <span className="text-[11px] text-[#555]">
+                <span className="text-[11px] text-neutral-500 font-medium">
                   {backendOnline === null
                     ? "Checking"
                     : backendOnline
@@ -252,7 +252,7 @@ export default function Home() {
       </header>
 
       {/* Recording Controls */}
-      <div className="border-b border-[#222] py-6 bg-[#0a0a0a]">
+      <div className="border-b border-neutral-100 py-6 bg-neutral-50">
         <div className="max-w-3xl mx-auto px-4 md:px-6">
           <RecorderControls
             isRecording={isRecording}
@@ -266,14 +266,14 @@ export default function Home() {
       </div>
 
       {/* Results Area */}
-      <main className="flex-1 overflow-y-auto scrollbar-thin">
+      <main className="flex-1 overflow-y-auto bg-white scrollbar-thin">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-6">
           {/* Empty state */}
           {translations.length === 0 && !isProcessing && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-12 h-12 rounded-full border border-[#333] flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mb-4">
                 <svg
-                  className="w-5 h-5 text-[#555]"
+                  className="w-5 h-5 text-neutral-400"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -281,10 +281,10 @@ export default function Home() {
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z" />
                 </svg>
               </div>
-              <h2 className="text-base font-medium text-[#999] mb-1.5">
+              <h2 className="text-base font-medium text-neutral-800 mb-1.5">
                 Ready to translate
               </h2>
-              <p className="text-sm text-[#555] max-w-sm leading-relaxed">
+              <p className="text-sm text-neutral-500 max-w-sm leading-relaxed">
                 Select a language, press Start, and speak.
                 Your speech will be transcribed and translated to English.
               </p>
@@ -292,7 +292,7 @@ export default function Home() {
                 {SUPPORTED_LANGUAGES.slice(0, 5).map((lang) => (
                   <span
                     key={lang.code}
-                    className="px-3 py-1 bg-[#111] text-[#555] rounded-full text-xs border border-[#222]"
+                    className="px-3 py-1 bg-neutral-100 text-neutral-600 rounded-full text-xs border border-neutral-200"
                   >
                     {lang.nativeName}
                   </span>
@@ -303,14 +303,14 @@ export default function Home() {
 
           {/* Processing indicator (shown while waiting for results) */}
           {isProcessing && (
-            <div className="card px-5 py-5 mb-4 animate-fade-in">
+            <div className="card px-5 py-5 mb-4 animate-fade-in shadow-xs">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-white rounded-full dot-1" />
-                  <span className="w-2 h-2 bg-white rounded-full dot-2" />
-                  <span className="w-2 h-2 bg-white rounded-full dot-3" />
+                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-1" />
+                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-2" />
+                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-3" />
                 </div>
-                <span className="text-sm text-[#888]">
+                <span className="text-sm text-neutral-500">
                   Transcribing and translating...
                 </span>
               </div>
@@ -332,8 +332,8 @@ export default function Home() {
                 onClick={handleClear}
                 disabled={isRecording || isProcessing}
                 className="
-                  text-xs text-[#555] hover:text-[#999]
-                  border border-[#222] hover:border-[#444]
+                  text-xs text-neutral-500 hover:text-neutral-900
+                  border border-neutral-200 hover:border-neutral-400
                   px-4 py-2 rounded-lg
                   disabled:opacity-40 disabled:cursor-not-allowed
                   transition-all

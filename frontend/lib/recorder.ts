@@ -52,7 +52,7 @@ export class AudioRecorder {
         }
       };
 
-      this.mediaRecorder.start(250); // Collect data every 250ms
+      this.mediaRecorder.start(); // Collect all data in a single chunk on stop for valid container headers
       this._isRecording = true;
     } catch (err) {
       this.cleanup();

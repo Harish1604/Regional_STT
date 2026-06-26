@@ -21,8 +21,8 @@ export default function LanguageSelector({
       disabled={disabled}
       className={`
         px-3 py-2 rounded-lg text-sm font-medium
-        bg-[#111] border border-[#333] text-white
-        focus:outline-none focus:border-[#555]
+        bg-white border border-neutral-200 text-neutral-900
+        focus:outline-none focus:border-neutral-400
         disabled:opacity-40 disabled:cursor-not-allowed
         appearance-none cursor-pointer
         pr-8

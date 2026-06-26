@@ -59,8 +59,8 @@ export default function RecorderControls({
             border transition-all duration-150
             ${
               isRecording || isProcessing
-                ? "bg-[#111] text-[#444] border-[#222] cursor-not-allowed"
-                : "bg-white text-black border-white hover:bg-[#e0e0e0] hover:border-[#e0e0e0] active:scale-[0.97]"
+                ? "bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed"
+                : "bg-neutral-900 text-white border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 active:scale-[0.97]"
             }
           `}
         >
@@ -81,8 +81,8 @@ export default function RecorderControls({
             border transition-all duration-150
             ${
               !isRecording || isProcessing
-                ? "bg-[#111] text-[#444] border-[#222] cursor-not-allowed"
-                : "bg-[#ff3333] text-white border-[#ff3333] hover:bg-[#e02020] active:scale-[0.97] recording-ring"
+                ? "bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed"
+                : "bg-red-600 text-white border-red-600 hover:bg-red-700 active:scale-[0.97] recording-ring"
             }
           `}
         >
@@ -93,7 +93,7 @@ export default function RecorderControls({
         </button>
 
         {/* Divider */}
-        <div className="w-px h-8 bg-[#333]" />
+        <div className="w-px h-8 bg-neutral-200" />
 
         {/* Upload button */}
         <button
@@ -105,8 +105,8 @@ export default function RecorderControls({
             border transition-all duration-150
             ${
               isRecording || isProcessing
-                ? "bg-[#111] text-[#444] border-[#222] cursor-not-allowed"
-                : "bg-transparent text-[#999] border-[#333] hover:text-white hover:border-[#555]"
+                ? "bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed"
+                : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
             }
           `}
         >
@@ -140,11 +140,11 @@ export default function RecorderControls({
       {isProcessing && (
         <div className="flex items-center gap-2 animate-fade-in">
           <div className="flex gap-1">
-            <span className="w-1.5 h-1.5 bg-white rounded-full dot-1" />
-            <span className="w-1.5 h-1.5 bg-white rounded-full dot-2" />
-            <span className="w-1.5 h-1.5 bg-white rounded-full dot-3" />
+            <span className="w-1.5 h-1.5 bg-neutral-900 rounded-full dot-1" />
+            <span className="w-1.5 h-1.5 bg-neutral-900 rounded-full dot-2" />
+            <span className="w-1.5 h-1.5 bg-neutral-900 rounded-full dot-3" />
           </div>
-          <span className="text-xs text-[#888]">Processing...</span>
+          <span className="text-xs text-neutral-500 font-medium">Processing...</span>
         </div>
       )}
     </div>
