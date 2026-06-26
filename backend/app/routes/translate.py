@@ -85,22 +85,41 @@ async def translate_audio(
             target_language=target_language,
         )
 
+        translated_text = translation_result["translated_text"]
+
+        # Step 3: LLM Chatbot Reply — generate a response to the translated text
+        llm_reply = ""
+        llm_reply_latency_ms = 0
+        try:
+            reply_result = llm_service.generate_reply(
+                message=translated_text,
+                language="en",
+                history=[],
+            )
+            llm_reply = reply_result["reply"]
+            llm_reply_latency_ms = reply_result["latency_ms"]
+        except Exception as reply_err:
+            log.warning(f"LLM reply generation failed (non-fatal): {reply_err}")
+
         total_latency_ms = int((time.time() - total_start) * 1000)
 
         log.info(
             f"Translation complete | stt: {stt_latency_ms}ms | "
-            f"llm: {translation_result['latency_ms']}ms | "
+            f"llm_translate: {translation_result['latency_ms']}ms | "
+            f"llm_reply: {llm_reply_latency_ms}ms | "
             f"total: {total_latency_ms}ms"
         )
 
         return TranslateResponse(
             success=True,
             source_text=source_text,
-            translated_text=translation_result["translated_text"],
+            translated_text=translated_text,
             source_language=source_language,
             target_language=target_language,
             stt_latency_ms=stt_latency_ms,
             translation_latency_ms=translation_result["latency_ms"],
+            llm_reply=llm_reply,
+            llm_reply_latency_ms=llm_reply_latency_ms,
             total_latency_ms=total_latency_ms,
             audio_duration_sec=stt_result["duration_sec"],
             model=stt_result["model"],

@@ -17,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState<LoadingState>({
     transcribing: false,
     translating: false,
+    generatingReply: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -73,7 +74,7 @@ export default function Home() {
   // --- Process audio (shared by recording and upload) ---
   const processAudio = useCallback(
     async (audioBlob: Blob | File) => {
-      setLoading({ transcribing: true, translating: false });
+      setLoading({ transcribing: true, translating: false, generatingReply: false });
 
       try {
         const result = await translateAudio(
@@ -94,6 +95,8 @@ export default function Home() {
           targetLanguage: result.target_language,
           sttLatencyMs: result.stt_latency_ms,
           translationLatencyMs: result.translation_latency_ms,
+          llmReply: result.llm_reply || "",
+          llmReplyLatencyMs: result.llm_reply_latency_ms || 0,
           totalLatencyMs: result.total_latency_ms,
           audioDurationSec: result.audio_duration_sec,
           createdAt: new Date().toISOString(),
@@ -106,7 +109,7 @@ export default function Home() {
         showError(errorMsg);
         console.error("Processing error:", err);
       } finally {
-        setLoading({ transcribing: false, translating: false });
+        setLoading({ transcribing: false, translating: false, generatingReply: false });
       }
     },
     [selectedLanguage, showError]
@@ -155,7 +158,7 @@ export default function Home() {
     setTranslations([]);
   }, []);
 
-  const isProcessing = loading.transcribing || loading.translating;
+  const isProcessing = loading.transcribing || loading.translating || loading.generatingReply;
 
   const currentLang = SUPPORTED_LANGUAGES.find(
     (l) => l.code === selectedLanguage
@@ -246,24 +249,26 @@ export default function Home() {
                 onLanguageChange={setSelectedLanguage}
                 disabled={isRecording || isProcessing}
               />
+              {/* Clear history button in header */}
+              {translations.length > 0 && (
+                <button
+                  id="clear-history-button"
+                  onClick={handleClear}
+                  disabled={isRecording || isProcessing}
+                  title="Clear conversation"
+                  className="p-2 text-neutral-400 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:opacity-50 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Recording Controls */}
-      <div className="border-b border-neutral-100 py-6 bg-neutral-50">
-        <div className="max-w-3xl mx-auto px-4 md:px-6">
-          <RecorderControls
-            isRecording={isRecording}
-            isProcessing={isProcessing}
-            recordingDuration={recordingDuration}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
-            onFileUpload={handleFileUpload}
-          />
-        </div>
-      </div>
+      {/* Note: Recording Controls moved to fixed bottom bar */}
 
       {/* Results Area */}
       <main className="flex-1 overflow-y-auto bg-white scrollbar-thin">
@@ -301,53 +306,61 @@ export default function Home() {
             </div>
           )}
 
-          {/* Processing indicator (shown while waiting for results) */}
-          {isProcessing && (
-            <div className="card px-5 py-5 mb-4 animate-fade-in shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-1" />
-                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-2" />
-                  <span className="w-2 h-2 bg-neutral-900 rounded-full dot-3" />
-                </div>
-                <span className="text-sm text-neutral-500">
-                  Transcribing and translating...
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Translation results */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 mb-4">
             {translations.map((entry) => (
               <TranslationResult key={entry.id} entry={entry} />
             ))}
           </div>
 
-          {/* Clear button */}
-          {translations.length > 0 && (
-            <div className="flex justify-center mt-6 mb-4">
-              <button
-                id="clear-history-button"
-                onClick={handleClear}
-                disabled={isRecording || isProcessing}
-                className="
-                  text-xs text-neutral-500 hover:text-neutral-900
-                  border border-neutral-200 hover:border-neutral-400
-                  px-4 py-2 rounded-lg
-                  disabled:opacity-40 disabled:cursor-not-allowed
-                  transition-all
-                "
-              >
-                Clear history
-              </button>
+          {/* Processing indicator (typing indicator) */}
+          {isProcessing && (
+            <div className="flex flex-col items-start self-start max-w-[85%] sm:max-w-[75%] animate-fade-in mb-4">
+              <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                <svg
+                  className="w-3.5 h-3.5 text-neutral-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                </svg>
+                <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold">
+                  AI Assistant
+                </span>
+              </div>
+              <div className="bg-neutral-100 border border-neutral-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full dot-1" />
+                  <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full dot-2" />
+                  <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full dot-3" />
+                </div>
+                <span className="text-sm text-neutral-500 font-medium italic">
+                  {loading.transcribing ? "Listening and transcribing..." : 
+                   loading.translating ? "Translating to English..." : 
+                   "Drafting a reply..."}
+                </span>
+              </div>
             </div>
           )}
 
-          {/* Scroll anchor */}
-          <div ref={bottomRef} />
+          {/* Extra padding at bottom to prevent the fixed bar from hiding the last message */}
+          <div ref={bottomRef} className="h-32" />
         </div>
       </main>
+
+      {/* Fixed Bottom Input Bar */}
+      <div className="bg-white border-t border-neutral-100 p-3 sm:p-4 z-10 shrink-0">
+        <RecorderControls
+          isRecording={isRecording}
+          isProcessing={isProcessing}
+          recordingDuration={recordingDuration}
+          onStartRecording={handleStartRecording}
+          onStopRecording={handleStopRecording}
+          onFileUpload={handleFileUpload}
+        />
+      </div>
     </div>
   );
 }

@@ -101,12 +101,7 @@ def get_translation_prompt(source_lang: str, target_lang: str) -> str:
 
 The input may be in Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Odia, Assamese, Urdu, or a code-mixed combination with English.
 
-Your task is to translate the transcript into {tgt_name}.
-
-Return valid JSON only in this exact format:
-{{
-  "{target_lang}_translation": "..."
-}}
+Your task is to translate the transcript into {tgt_name}. Output ONLY the translated text and absolutely nothing else.
 
 Rules:
 - Preserve the original meaning exactly.
@@ -118,7 +113,7 @@ Rules:
 - If English words are already present, keep them naturally in the sentence.
 - If the input is code-mixed, translate only the non-English parts while preserving the full intended meaning.
 - If any phrase is ambiguous, translate conservatively and do not invent missing content.
-- Output valid JSON only. No markdown. No extra text.
+- Output the translation as raw text only. No markdown. No extra text. No conversational filler.
 
 Examples:{examples_text}
 Now translate this:
@@ -130,17 +125,17 @@ Transcript:"""
 _TRANSLATION_EXAMPLES = {
     "ta": {
         "en": [
-            {"src": "வணக்கம் எப்படி இருக்கீங்க", "tgt": "{\n  \"en_translation\": \"Hello, how are you?\"\n}"},
-            {"src": "நான் காலையில சாப்பிட்டேன்", "tgt": "{\n  \"en_translation\": \"I ate in the morning\"\n}"},
-            {"src": "நாளைக்கு ட்ரெயின்ல போகணும்", "tgt": "{\n  \"en_translation\": \"I need to go by train tomorrow\"\n}"},
-            {"src": "நாளைக்கு எனக்கு பர்த்டே", "tgt": "{\n  \"en_translation\": \"Tomorrow is my birthday\"\n}"},
-            {"src": "டிரான்ஸ்லேஷன் ஒழுங்காக ஒர்க் ஆகலாது", "tgt": "{\n  \"en_translation\": \"The translation is not working properly\"\n}"},
+            {"src": "வணக்கம் எப்படி இருக்கீங்க", "tgt": "Hello, how are you?"},
+            {"src": "நான் காலையில சாப்பிட்டேன்", "tgt": "I ate in the morning"},
+            {"src": "நாளைக்கு ட்ரெயின்ல போகணும்", "tgt": "I need to go by train tomorrow"},
+            {"src": "நாளைக்கு எனக்கு பர்த்டே", "tgt": "Tomorrow is my birthday"},
+            {"src": "டிரான்ஸ்லேஷன் ஒழுங்காக ஒர்க் ஆகலாது", "tgt": "The translation is not working properly"},
         ],
     },
     "hi": {
         "en": [
-            {"src": "नमस्ते आप कैसे हैं", "tgt": "{\n  \"en_translation\": \"Hello, how are you?\"\n}"},
-            {"src": "मैंने सुबह खाना खाया", "tgt": "{\n  \"en_translation\": \"I ate food in the morning\"\n}"},
+            {"src": "नमस्ते आप कैसे हैं", "tgt": "Hello, how are you?"},
+            {"src": "मैंने सुबह खाना खाया", "tgt": "I ate food in the morning"},
             {"src": "कल मुझे ट्रेन से जाना है", "tgt": "I have to go by train tomorrow"},
         ],
     },

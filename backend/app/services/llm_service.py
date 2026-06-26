@@ -208,6 +208,26 @@ class GeminiLLMService(BaseLLMService):
             )
 
             translated = response.text.strip() if response.text else ""
+            
+            # Extract JSON if enclosed in markdown code blocks
+            import re
+            if translated.startswith("```"):
+                translated = re.sub(r"^```(?:json)?\n?(.*?)\n?```$", r"\1", translated, flags=re.DOTALL).strip()
+                
+            try:
+                import json
+                data = json.loads(translated)
+                key = f"{target_language}_translation"
+                if key in data:
+                    translated = data[key]
+                elif "en_translation" in data:
+                    translated = data["en_translation"]
+                elif data:
+                    translated = list(data.values())[0]
+            except json.JSONDecodeError:
+                # Fallback to raw text if not valid JSON
+                pass
+
             latency_ms = int((time.time() - start_time) * 1000)
 
             log.info(f"Translation response | latency: {latency_ms}ms")
@@ -359,6 +379,7 @@ class OllamaLLMService(BaseLLMService):
                     "model": self.model_name,
                     "prompt": full_prompt,
                     "stream": False,
+                    "keep_alive": -1,
                 },
                 timeout=60,
             )
@@ -404,7 +425,7 @@ class OllamaLLMService(BaseLLMService):
                     "model": self.model_name,
                     "prompt": full_prompt,
                     "stream": False,
-                    "format": "json",
+                    "keep_alive": -1,
                     "options": {
                         "num_predict": 256,
                         "temperature": 0.1,
@@ -415,16 +436,8 @@ class OllamaLLMService(BaseLLMService):
             response.raise_for_status()
             data = response.json()
             
-            # The response itself should be a JSON string from the LLM
-            response_text = data.get("response", "").strip()
-            
-            try:
-                import json
-                parsed_json = json.loads(response_text)
-                translated = parsed_json.get(f"{target_language}_translation", response_text)
-            except json.JSONDecodeError:
-                log.warning(f"Failed to parse LLM JSON output. Raw output: {response_text}")
-                translated = response_text
+            # The response is now plain text
+            translated = data.get("response", "").strip()
 
             latency_ms = int((time.time() - start_time) * 1000)
 

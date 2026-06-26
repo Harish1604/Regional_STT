@@ -43,7 +43,7 @@ class ErrorResponse(BaseModel):
 
 
 class TranslateResponse(BaseModel):
-    """Response for the /translate endpoint (combined STT + translation)."""
+    """Response for the /translate endpoint (combined STT + translation + chatbot reply)."""
 
     success: bool = True
     source_text: str = Field(..., description="Transcribed text in source language")
@@ -52,6 +52,8 @@ class TranslateResponse(BaseModel):
     target_language: str = Field(..., description="Target language code")
     stt_latency_ms: int = Field(..., description="STT inference latency in ms")
     translation_latency_ms: int = Field(..., description="LLM translation latency in ms")
+    llm_reply: str = Field(default="", description="LLM chatbot reply to the translated text")
+    llm_reply_latency_ms: int = Field(default=0, description="LLM reply generation latency in ms")
     total_latency_ms: int = Field(..., description="Total pipeline latency in ms")
     audio_duration_sec: float = Field(..., description="Input audio duration in seconds")
     model: str = Field(default="", description="STT model used")

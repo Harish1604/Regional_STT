@@ -39,6 +39,8 @@ export interface TranslateAPIResponse {
   target_language: string;
   stt_latency_ms: number;
   translation_latency_ms: number;
+  llm_reply: string;
+  llm_reply_latency_ms: number;
   total_latency_ms: number;
   audio_duration_sec: number;
   model: string;
@@ -53,6 +55,8 @@ export interface TranslationEntry {
   targetLanguage: string;
   sttLatencyMs: number;
   translationLatencyMs: number;
+  llmReply: string;
+  llmReplyLatencyMs: number;
   totalLatencyMs: number;
   audioDurationSec: number;
   createdAt: string;
@@ -93,4 +97,5 @@ export interface ChatHistoryItem {
 export interface LoadingState {
   transcribing: boolean;
   translating: boolean;
+  generatingReply: boolean;
 }
