@@ -80,6 +80,49 @@ class BaseLLMService(ABC):
         if domain_addition:
             system_prompt += "\n\n" + domain_addition
 
+        # Inject current date and time context
+        import datetime
+        current_time = datetime.datetime.now().strftime("%A, %B %d, %Y - %I:%M %p")
+        system_prompt += f"\n\n[System Context - Current Date & Time: {current_time}]"
+
+        # Run DuckDuckGo search to ground the model on recent data
+        search_context = ""
+        # Run DuckDuckGo search to ground the model on recent data
+        search_context = ""
+        try:
+            from ddgs import DDGS
+            # Match keywords that suggest factual, location-based, or service-related queries (including typos like 'restaurent' and 'god')
+            msg_lower = message.lower()
+            search_keywords = [
+                "what", "where", "who", "when", "how", "why", "which",
+                "best", "top", "good", "god", "great", "famous", "popular", "nice",
+                "restaurant", "restaurent", "resturant", "hotel", "cafe", "dhaba", "canteen", "bakery",
+                "food", "delivery", "biryani", "tiffin", "meals", "eat", "dine", "lunch", "dinner",
+                "latest", "current", "status", "news", "weather", "today",
+                "score", "match", "update", "near", "price", "rate", "find", "search",
+                "recommend", "suggest", "show", "tell me"
+            ]
+            if any(kw in msg_lower for kw in search_keywords) and len(message.split()) > 2:
+                log.info(f"Performing DuckDuckGo search grounding for: {message}")
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(message, max_results=3))
+                if results:
+                    search_context = (
+                        "\n\n[Search Grounding - The following are real-time search results from the web. "
+                        "CRITICAL RULE: You MUST answer the user's question EXACTLY and PRECISELY using only the facts, "
+                        "names, and details listed below. Do NOT make up any names or write vague, general statements. "
+                        "Directly mention the names of the places, restaurants, or details found in this context:]\n"
+                    )
+                    for r in results:
+                        search_context += f"- Title: {r.get('title')}\n  Snippet: {r.get('body')}\n"
+                    log.info(f"Search grounding added successfully ({len(results)} results)")
+        except Exception as e:
+            log.warning(f"DuckDuckGo search grounding failed: {e}")
+
+        if search_context:
+            system_prompt += search_context
+            
+
         # Build messages from history
         messages = []
         for item in history:
@@ -92,6 +135,7 @@ class BaseLLMService(ABC):
         messages.append({"role": "user", "content": message})
 
         return system_prompt, messages
+
 
 
 class GeminiLLMService(BaseLLMService):
